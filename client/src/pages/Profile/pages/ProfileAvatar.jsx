@@ -1,6 +1,5 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef } from "react";
 import { Camera, User } from "lucide-react";
-import { useRef } from "react";
 import { supabase } from "../../../utils/supabaseClient";
 import { updateAvatar } from "../../../apis/auth.api";
 import { AuthContext } from "../../../context/AuthContext";
@@ -11,45 +10,39 @@ export default function ProfileAvatar({
   onChangeAvatar,
   id,
 }) {
-  // création d'une référence à l'input qui permet d'accèder à un élément du DOM sans provoquer de re render
+  // Bloque le rendu côté serveur (SSR)
+  if (typeof window === "undefined") return null;
+
+  // Référence pour input file
   const inputRef = useRef(null);
   const { setUser, user } = useContext(AuthContext);
 
-  // récupère le clic sur l'input file et ouvre l'explorateur de fichier pour choisir votre image
+  console.log("ProfileAvatar user:", user); // debug user
+
   const handleAvatarCLick = () => {
-    console.log(inputRef);
     if (isEditing && inputRef.current) {
       inputRef.current.click();
     }
   };
 
-  // méthode qui détecte un événement dans l'input de type file
   const handleFileChange = async (e) => {
-    // Récupération du fichier
     const file = e?.target?.files?.[0];
 
-    // Vérification de la validité du fichier
     if (!file || typeof file.name !== "string" || !file.name.includes(".")) {
       console.error("Fichier invalide ou sans extension :", file);
       return;
     }
 
     try {
-      // Récupération de l'extension du fichier
       const fileExt = file.name.split(".").pop();
-      console.log("Extension du fichier :", fileExt);
-
-      // Création d'un nom de fichier unique
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
 
-      // Upload du fichier sur Supabase
       const { data, error } = await supabase.storage
         .from("images")
         .upload(fileName, file);
 
       if (error) throw error;
 
-      // Récupération de l'URL publique
       const { data: url } = await supabase.storage
         .from("images")
         .getPublicUrl(fileName);
@@ -58,26 +51,28 @@ export default function ProfileAvatar({
         throw new Error("URL publique introuvable après upload");
       }
 
-      // Mise à jour de l'avatar en base de données
       await updateAvatar({ avatar: url.publicUrl, _id: id });
-
-      // Mise à jour du profil local via le callback
       onChangeAvatar(url.publicUrl);
 
-      // Mise à jour du localStorage
-      const storedUser = JSON.parse(localStorage.getItem("user")) || {};
+      const storedUser =
+        typeof window !== "undefined"
+          ? JSON.parse(localStorage.getItem("user")) || {}
+          : {};
       const updatedUser = { ...storedUser, avatar: url.publicUrl };
       localStorage.setItem("user", JSON.stringify(updatedUser));
-
-      // Mise à jour dans le contexte utilisateur
       setUser(updatedUser);
     } catch (err) {
       console.error("Erreur lors du traitement de l'image :", err);
     }
   };
 
-  // on utilise soit l'url dans la bdd sinon si elle est nulle l'avatar par défaut
-  const avatarSrc = user?.avatar || avatarUrl;
+  // Source avatar sûre
+  const avatarSrc =
+    user?.avatar && user.avatar !== "undefined"
+      ? user.avatar
+      : avatarUrl && avatarUrl !== "undefined"
+      ? avatarUrl
+      : null;
 
   return (
     <div className="flex flex-col items-center">
