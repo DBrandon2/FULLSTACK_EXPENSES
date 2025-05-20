@@ -39,7 +39,7 @@ export default function ProfileAvatar({
 
       // envoi du nom de fichier et de l'image sur le stockage supabase
       let { data, error } = await supabase.storage
-        .from("expenses-track")
+        .from("images")
         .upload(fileName, file);
 
       // gestion de la possible erreur
@@ -47,7 +47,7 @@ export default function ProfileAvatar({
 
       // récupération de l'URL de l'image insérée
       const { data: url } = await supabase.storage
-        .from("expenses-track")
+        .from("images")
         .getPublicUrl(fileName);
 
       // requête HTTP pour modifier l'avatar en BDD, l'identifiant est nécessaire à la requête dans le backend
