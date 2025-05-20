@@ -77,7 +77,8 @@ export default function ProfileAvatar({
   };
 
   // on utilise soit l'url dans la bdd sinon si elle est nulle l'avatar par défaut
-  const avatarSrc = user.avatar || avatarUrl;
+  const avatarSrc = user?.avatar || avatarUrl;
+
   return (
     <div className="flex flex-col items-center">
       <div
