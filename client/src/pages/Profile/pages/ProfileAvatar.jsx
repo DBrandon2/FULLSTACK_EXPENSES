@@ -25,47 +25,54 @@ export default function ProfileAvatar({
 
   // méthode qui détecte un événement dans l'input de type file
   const handleFileChange = async (e) => {
-    // récupération de l'image
-    const file = e.target.files[0];
-    console.log(file);
-    // si pas d'image on sort de la méthode
-    if (!file) return;
+    // Récupération du fichier
+    const file = e?.target?.files?.[0];
+
+    // Vérification de la validité du fichier
+    if (!file || typeof file.name !== "string" || !file.name.includes(".")) {
+      console.error("Fichier invalide ou sans extension :", file);
+      return;
+    }
+
     try {
-      // récupération de l'extension du fichier
+      // Récupération de l'extension du fichier
       const fileExt = file.name.split(".").pop();
-      console.log(fileExt);
-      // création d'un nom aléatoire et unique pour l'image
+      console.log("Extension du fichier :", fileExt);
+
+      // Création d'un nom de fichier unique
       const fileName = `${crypto.randomUUID()}.${fileExt}`;
 
-      // envoi du nom de fichier et de l'image sur le stockage supabase
-      let { data, error } = await supabase.storage
+      // Upload du fichier sur Supabase
+      const { data, error } = await supabase.storage
         .from("images")
         .upload(fileName, file);
 
-      // gestion de la possible erreur
       if (error) throw error;
 
-      // récupération de l'URL de l'image insérée
+      // Récupération de l'URL publique
       const { data: url } = await supabase.storage
         .from("images")
         .getPublicUrl(fileName);
 
-      // requête HTTP pour modifier l'avatar en BDD, l'identifiant est nécessaire à la requête dans le backend
-      // on récupère l'ID depuis le contexte passé en props depuis Data
+      if (!url?.publicUrl) {
+        throw new Error("URL publique introuvable après upload");
+      }
+
+      // Mise à jour de l'avatar en base de données
       await updateAvatar({ avatar: url.publicUrl, _id: id });
 
-      // appel de la méthode qui met, depuis Data, le defaultProfile à jour
+      // Mise à jour du profil local via le callback
       onChangeAvatar(url.publicUrl);
 
-      // récupération du localStorage pour lui ajouter l'avatar
-      const storedUser = JSON.parse(localStorage.getItem("user"));
+      // Mise à jour du localStorage
+      const storedUser = JSON.parse(localStorage.getItem("user")) || {};
       const updatedUser = { ...storedUser, avatar: url.publicUrl };
       localStorage.setItem("user", JSON.stringify(updatedUser));
 
-      // mise à jour de l'utilisateur dans le provider
+      // Mise à jour dans le contexte utilisateur
       setUser(updatedUser);
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      console.error("Erreur lors du traitement de l'image :", err);
     }
   };
 
